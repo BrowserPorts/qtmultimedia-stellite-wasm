@@ -174,8 +174,13 @@ void QWasmMediaDevices::parseDevices(emscripten::val devices)
     m_audioOutputsRemoved = !audioOutputsToRemove.isEmpty();
 
     if (m_videoInputsAdded || m_videoInputsRemoved) {
-        auto videoDevices = static_cast<QWasmCameraDevices*>(QPlatformMediaIntegration::instance()->videoDevices());
-        videoDevices->onVideoInputsChanged();
+        // JSPI can enumerate devices before the audio-device constructor returns.
+        // Resolve the video provider after both lazy initializers have completed.
+        QMetaObject::invokeMethod(this, [] {
+            auto videoDevices = static_cast<QWasmCameraDevices *>(
+                    QPlatformMediaIntegration::instance()->videoDevices());
+            videoDevices->onVideoInputsChanged();
+        }, Qt::QueuedConnection);
     }
     if (m_audioInputsAdded || m_audioInputsRemoved)
         onAudioInputsChanged();
